@@ -1,1 +1,1 @@
-# sendores-IC
+# sensores-IC
