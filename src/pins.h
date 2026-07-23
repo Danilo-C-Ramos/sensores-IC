@@ -16,14 +16,14 @@
 
 /* ---------------- Sensor de distancia HC-SR04 ---------------- */
 /* ATENCAO: o ECHO do HC-SR04 e 5V -> usar divisor/level-shifter para 3V3. */
-#define HCSR04_TRIG_PIN     17
-#define HCSR04_ECHO_PIN     16
+#define HCSR04_TRIG_PIN     14
+#define HCSR04_ECHO_PIN     15
 #define HCSR04_TIMEOUT_US   30000   /* ~5 m de alcance maximo antes de desistir */
 
 /* ---------------- MPU6050 (I2C) ---------------- */
 #define MPU_I2C_PORT        i2c0
-#define MPU_SDA_PIN         4
-#define MPU_SCL_PIN         5
+#define MPU_SDA_PIN         16
+#define MPU_SCL_PIN         17
 #define MPU_I2C_BAUD        400000  /* 400 kHz fast mode */
 
 /* ---------------- Freio eletromecanico (MOSFET) ---------------- */
@@ -53,10 +53,10 @@
  * O debug (printf) sai pela USB, entao a UART fica dedicada ao HC-06.
  * OBS: o guia do curso usa uart1/GP4-GP5, mas aqui GP4/GP5 sao o I2C do MPU;
  * por isso o HC-06 fica no uart0/GP0-GP1. */
-#define HC06_UART_ID        uart0
+#define HC06_UART_ID        uart1
 #define HC06_BAUD_RATE      115200
-#define HC06_TX_PIN         0       /* Pico TX -> RX do HC-06 */
-#define HC06_RX_PIN         1       /* Pico RX <- TX do HC-06 (nivel 3V3) */
+#define HC06_TX_PIN         8       /* Pico TX -> RX do HC-06 */
+#define HC06_RX_PIN         9       /* Pico RX <- TX do HC-06 (nivel 3V3) */
 #define HC06_ENABLE_PIN     2       /* EN/KEY (opcional p/ modo AT); livre */
 #define HC06_STATE_PIN      3       /* STATE: alto quando conectado (entrada) */
 

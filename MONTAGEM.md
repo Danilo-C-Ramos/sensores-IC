@@ -90,56 +90,7 @@ lendo `/dev/ttyACM*` a 115200.
 
 ---
 
-## Etapa 1 — Botões + LEDs de status
-
-**Objetivo:** validar comando manual e os LEDs de estado, sem potência.
-
-**Ligações:**
-- Botão UP entre **GP10** e **GND**; DOWN entre **GP11** e GND; STOP entre **GP12** e GND.
-  (Pull-up é interno; pressionado = nível 0.)
-- LED de MODO: **GP18** → resistor 330 Ω → LED → GND.
-- LED de FREIO: **GP19** → resistor 330 Ω → LED → GND.
-
-**Teste (monitor USB):**
-- Botão UP → `[CTRL] modo -> SUBINDO`, LED de MODO acende.
-- Botão DOWN → `[CTRL] modo -> DESCENDO`, LED de MODO acende.
-- Botão STOP → `[CTRL] modo -> IDLE`, LED de MODO apaga.
-
-**Problemas comuns:** botão não responde → verifique se está entre o GPIO e o **GND**
-(não no 3,3 V). LED sempre aceso/apagado → resistor/polaridade do LED.
-
----
-
-## Etapa 2 — Freio (MOSFET) — teste com LED antes do motor!
-
-**Objetivo:** validar o acionamento do freio **sem** risco. Use um LED como "motor
-fake" para enxergar o freio engatando.
-
-**Ligações (fase de teste, com LED):**
-- **GP15** → resistor 220 Ω → **gate** do MOSFET.
-- **gate → GND** com resistor 10 kΩ (pull-down: mantém o freio solto se o pino ficar
-  flutuando durante o boot).
-- **source** → GND.
-- **drain** → LED "motor fake" → resistor 330 Ω → 3,3 V.
-
-**Teste (monitor USB, mande comandos por texto — ver etapa 7 para o teclado, ou use
-os botões):**
-- No boot o freio está **solto** (LED do dreno apagado) — estado seguro.
-- Comando `brake` → `[CTRL] modo -> FREADO (freio ON)`, LED de FREIO (GP19) acende e
-  o "motor fake" é chaveado.
-- Comando `release` → freio solta.
-
-**Só depois de validar:** troque o LED fake pelos **terminais do motor** (o MOSFET dá
-curto entre eles = freio dinâmico). Dimensione o MOSFET para a corrente de curto do
-motor e mantenha o **GND comum** com a Pico.
-
-> ⚠️ Freio dinâmico (curto no motor) freia pela geração — ele **resiste** ao
-> movimento, não segura um peso parado indefinidamente. Considere um freio mecânico
-> se precisar segurar estático.
-
----
-
-## Etapa 3 — Sensor de distância HC-SR04
+## Etapa 1 — Sensor de distância HC-SR04
 
 **Objetivo:** medir distância e velocidade do bloco.
 
@@ -162,7 +113,7 @@ trocados, ou o divisor no ECHO errado). Valores absurdos → confira o divisor e
 
 ---
 
-## Etapa 4 — MPU6050 (I2C)
+## Etapa 2 — MPU6050 (I2C)
 
 **Objetivo:** inclinação (balanço), 2ª velocidade e o alarme que engata o freio.
 
@@ -180,11 +131,61 @@ Incline o sensor e veja `inclinacao` subir. Passando de **20°** (`SWAY_TILT_ALA
 ```
 [CTRL] ALARME balanco 21.3 deg -> freio ON
 ```
-e o LED de FREIO acende — é o requisito de travar por balanço.
+o modo vai para `FREADO` — é o requisito de travar por balanço. (Se você já montou o
+LED de FREIO da etapa 9, ele acende junto; senão, confira pela mensagem na serial.)
 
 **Problemas comuns:** **nenhuma** linha `I` → o `mpu6050_init()` não achou o sensor
 (WHOAMI ≠ 0x68). Cheque SDA/SCL (não invertidos), alimentação e o AD0. Ajuste o
 limiar em [`src/tasks/tasks.h`](src/tasks/tasks.h) se precisar.
+
+---
+
+## Etapa 3 — Freio (MOSFET) — teste com LED antes do motor!
+
+**Objetivo:** validar o acionamento do freio **sem** risco. Use um LED como "motor
+fake" para enxergar o freio engatando.
+
+**Ligações (fase de teste, com LED):**
+- **GP15** → resistor 220 Ω → **gate** do MOSFET.
+- **gate → GND** com resistor 10 kΩ (pull-down: mantém o freio solto se o pino ficar
+  flutuando durante o boot).
+- **source** → GND.
+- **drain** → LED "motor fake" → resistor 330 Ω → 3,3 V.
+
+**Teste (monitor USB, mande comandos por texto — ver a *Referência rápida de
+comandos* no fim do guia):**
+- No boot o freio está **solto** (LED do dreno apagado) — estado seguro.
+- Comando `brake` → `[CTRL] modo -> FREADO (freio ON)` e o "motor fake" é chaveado
+  (LED do dreno acende). Se já montou o LED de FREIO (GP19) da etapa 9, ele acende junto.
+- Comando `release` → freio solta.
+
+**Só depois de validar:** troque o LED fake pelos **terminais do motor** (o MOSFET dá
+curto entre eles = freio dinâmico). Dimensione o MOSFET para a corrente de curto do
+motor e mantenha o **GND comum** com a Pico.
+
+> ⚠️ Freio dinâmico (curto no motor) freia pela geração — ele **resiste** ao
+> movimento, não segura um peso parado indefinidamente. Considere um freio mecânico
+> se precisar segurar estático.
+
+---
+
+## Etapa 4 — Bluetooth (HC-06) + script Python
+
+**Objetivo:** telemetria e comandos sem fio.
+
+**Ligações (uart0):**
+- **VCC** do HC-06 → 5 V, **GND** → GND.
+- **Pico TX (GP0)** → **RX do HC-06**.
+- **TX do HC-06** → **Pico RX (GP1)**.
+- **STATE** → **GP3** (opcional; status de conexão).
+- **EN/KEY** → **GP2** (opcional; só usado se for entrar em modo AT).
+
+O firmware **auto-configura** o HC-06 no boot (nome, PIN e baud 115200) via `hc06_config()`
+— não precisa mexer no baud à mão. Veja o passo a passo completo, pareamento e
+resolução de problemas em **[BLUETOOTH.md](BLUETOOTH.md)**.
+
+**Dica:** com `TELEMETRY_ALSO_USB=1` você pode usar o mesmo script apontando para a
+**USB** (`--port /dev/ttyACM0`) antes do HC-06 estar pronto.
 
 ---
 
@@ -230,27 +231,7 @@ limiar em [`src/tasks/tasks.h`](src/tasks/tasks.h) se precisar.
 
 ---
 
-## Etapa 7 — Bluetooth (HC-06) + script Python
-
-**Objetivo:** telemetria e comandos sem fio.
-
-**Ligações (uart0):**
-- **VCC** do HC-06 → 5 V, **GND** → GND.
-- **Pico TX (GP0)** → **RX do HC-06**.
-- **TX do HC-06** → **Pico RX (GP1)**.
-- **STATE** → **GP3** (opcional; status de conexão).
-- **EN/KEY** → **GP2** (opcional; só usado se for entrar em modo AT).
-
-O firmware **auto-configura** o HC-06 no boot (nome, PIN e baud 115200) via `hc06_config()`
-— não precisa mexer no baud à mão. Veja o passo a passo completo, pareamento e
-resolução de problemas em **[BLUETOOTH.md](BLUETOOTH.md)**.
-
-**Dica:** com `TELEMETRY_ALSO_USB=1` você pode usar o mesmo script apontando para a
-**USB** (`--port /dev/ttyACM0`) antes do HC-06 estar pronto.
-
----
-
-## Etapa 8 — Integração e ciclo completo
+## Etapa 7 — Integração e ciclo completo
 
 Com tudo montado e validado individualmente:
 
@@ -270,7 +251,7 @@ Com tudo montado e validado individualmente:
 
 ---
 
-## Etapa 9 — Alimentar por bateria (rodar sem o cabo USB)
+## Etapa 8 — Alimentar por bateria (rodar sem o cabo USB)
 
 **Objetivo:** deixar a Pico rodando sozinha, alimentada por bateria, acompanhando tudo
 pelo Bluetooth — sem PC conectado.
@@ -327,6 +308,28 @@ HC-SR04, HC-06 e ACS712 esperam ~5 V — e na bateria você **não** tem o VBUS 
 
 > Dica: dá para monitorar a própria bateria ligando o VSYS (por um divisor) num canal de
 > ADC livre, se quiser telemetria do nível de carga — fora do escopo atual.
+
+---
+
+## Etapa 9 — Botões + LEDs de status (bônus)
+
+**Objetivo:** validar comando manual e os LEDs de estado, sem potência. Esta etapa é
+**bônus**: todos os comandos já funcionam por texto (USB/HC-06) e todos os estados já
+aparecem na serial — os botões e LEDs são só uma comodidade física.
+
+**Ligações:**
+- Botão UP entre **GP10** e **GND**; DOWN entre **GP11** e GND; STOP entre **GP12** e GND.
+  (Pull-up é interno; pressionado = nível 0.)
+- LED de MODO: **GP18** → resistor 330 Ω → LED → GND.
+- LED de FREIO: **GP19** → resistor 330 Ω → LED → GND.
+
+**Teste (monitor USB):**
+- Botão UP → `[CTRL] modo -> SUBINDO`, LED de MODO acende.
+- Botão DOWN → `[CTRL] modo -> DESCENDO`, LED de MODO acende.
+- Botão STOP → `[CTRL] modo -> IDLE`, LED de MODO apaga.
+
+**Problemas comuns:** botão não responde → verifique se está entre o GPIO e o **GND**
+(não no 3,3 V). LED sempre aceso/apagado → resistor/polaridade do LED.
 
 ---
 
